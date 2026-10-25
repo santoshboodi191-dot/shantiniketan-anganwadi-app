@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Shantiniketan LPS Anganwadi – Attendance</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f7a5a">
+<meta name="description" content="Offline attendance and student records for Shantiniketan LPS Anganwadi.">
+<link rel="manifest" href="./manifest.json"><link rel="icon" href="./icon.svg" type="image/svg+xml">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f7f4;--card:#fff;--tx:#1d2b24;--mu:#5d6b64;--bd:#dfe5df;--pr:#1f7a5a;--pg:#d9f0e5;--ab:#c0392b;--lv:#b7791f;--ok:#1f7a5a}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--bg:#121816;--card:#1c2521;--tx:#e8efe9;--mu:#9baba2;--bd:#2d3a34;--pr:#4cc79a;--pg:#1d3a2f;--ab:#ff7a6b;--lv:#e6b450;--ok:#4cc79a}}
+:root[data-theme=dark]{color-scheme:dark;--bg:#121816;--card:#1c2521;--tx:#e8efe9;--mu:#9baba2;--bd:#2d3a34;--pr:#4cc79a;--pg:#1d3a2f;--ab:#ff7a6b;--lv:#e6b450;--ok:#4cc79a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding-bottom:70px}
+header{padding:12px 16px;background:var(--pr);color:#fff}header h1{margin:0;font-size:17px}header small{opacity:.9}
+main{max-width:900px;margin:0 auto;padding:12px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom,0px);overflow-x:auto}
+nav button{flex:1;min-width:64px;border:0;background:none;color:var(--mu);padding:10px 4px;font-size:12px}nav button.on{color:var(--pr);font-weight:700;border-top:3px solid var(--pr)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}.stat b{font-size:26px;display:block}.stat span{color:var(--mu);font-size:13px}
+input,select,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font:inherit}
+label{font-size:13px;color:var(--mu);display:block;margin:6px 0 2px}.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1;min-width:120px}
+.btn{padding:12px 16px;border:0;border-radius:10px;background:var(--pr);color:#fff;font:inherit;font-weight:600}.btn.sec{background:var(--pg);color:var(--pr)}.btn.dg{background:var(--ab)}
+.st{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd)}.st .nm{flex:1;min-width:0}.st .nm small{color:var(--mu);display:block}
+.seg{display:flex;gap:4px}.seg button{padding:10px 12px;border:2px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;font-weight:600;min-width:44px}
+.seg .P.on{background:var(--ok);color:#fff;border-color:var(--ok)}.seg .A.on{background:var(--ab);color:#fff;border-color:var(--ab)}.seg .L.on{background:var(--lv);color:#fff;border-color:var(--lv)}
+.tag{padding:2px 8px;border-radius:20px;font-size:12px;font-weight:700;color:#fff}.g{background:var(--ok)}.s{background:var(--lv)}.n{background:var(--ab)}.u{background:var(--mu)}
+.sticky{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding:6px 0;z-index:5}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.cal div{padding:8px 2px;text-align:center;border-radius:6px;background:var(--card);border:1px solid var(--bd);font-size:13px}
+.cal .h{background:var(--pg);color:var(--mu)}.cal .d{border-color:var(--ok);font-weight:700}
+#toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:10px;display:none;z-index:9}
+@media print{nav,header .no,.noprint{display:none!important}body{padding:0}}
+</style></head><body>
+<header><h1>Shantiniketan LPS Anganwadi</h1><small id="who">Loading…</small></header>
+<main id="app"><div class="card">Connecting to database…</div></main>
+<nav id="nav"></nav><div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const S={students:[],att:{},hol:{},set:{good:90,sat:75,leave:'excluded'},audit:[]};
+let db,user,dl,role='viewer',uid='',view='dash';
+const A={date:today(),cls:'',q:'',marks:{},loaded:''};
+let M={month:today().slice(0,7),cls:''};
+function today(){return new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10)}
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2500)}
+const can=r=>r==='any'||role==='admin'||(r==='mark'&&role==='teacher');
+const isWork=d=>new Date(d+'T00:00:00Z').getUTCDay()!==0&&!S.hol[d];
+function daysIn(m){const n=new Date(+m.slice(0,4),+m.slice(5),0).getDate();return Array.from({length:n},(_,i)=>m+'-'+String(i+1).padStart(2,'0'))}
+const classes=()=>[...new Set(S.students.filter(s=>s.status==='Active').map(s=>s.cls))].sort();
+function status(p){return p===null?['No data','u']:p>=S.set.good?['Good','g']:p>=S.set.sat?['Satisfactory','s']:['Needs Attention','n']}
+function stats(sid,cls,days){let P=0,Ab=0,L=0,rec=0;for(const d of days){if(!isWork(d))continue;const r=S.att[d+'_'+cls];if(!r||!(sid in r.marks))continue;rec++;const v=r.marks[sid];v==='P'?P++:v==='A'?Ab++:L++}
+ const sched=days.filter(d=>d<=today()&&isWork(d)).length;const lv=S.set.leave==='present';const den=lv?rec:rec-L;const pct=den>0?Math.round((P+(lv?L:0))/den*1000)/10:null;return{P,Ab,L,rec,sched,pct}}
+async function log(action,detail){
+  S.audit.unshift({action,detail,by:uid,at:new Date().toISOString()}); S.audit=S.audit.slice(0,200); persist();
+}
+
+async function init(){
+  try {
+    const saved=JSON.parse(localStorage.getItem('shantiniketan_anganwadi_v1')||'{}');
+    S.students=Array.isArray(saved.students)?saved.students:[];
+    S.att=saved.att&&typeof saved.att==='object'?saved.att:{};
+    S.hol=saved.hol&&typeof saved.hol==='object'?saved.hol:{};
+    S.set={...S.set,...(saved.set||{})}; S.audit=Array.isArray(saved.audit)?saved.audit:[];
+    role='admin'; uid='local-device'; $('#who').textContent='Local device · Admin'; render();
+  } catch(e) { $('#app').innerHTML='<div class="card"><b>Could not load local data.</b><p>Check browser storage settings.</p></div>'; }
+}
+function persist(){
+  try { localStorage.setItem('shantiniketan_anganwadi_v1',JSON.stringify({students:S.students,att:S.att,hol:S.hol,set:S.set,audit:S.audit})); return true; }
+  catch(e){ toast('Storage is full or unavailable. Export a backup and free device space.'); return false; }
+}
+
+function render(){
+ const tabs=[['dash','Home'],['att','Attendance'],['stu','Students'],['mon','Monthly'],['cal','Calendar']];if(role==='admin')tabs.push(['set','Settings']);
+ $('#nav').innerHTML=tabs.map(t=>`<button class="${view===t[0]?'on':''}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');
+ if(document.activeElement&&document.activeElement.tagName==='INPUT'&&view==='att')return;
+ $('#app').innerHTML=({dash,att,stu,mon,cal,set:setv}[view])();}
+function go(v){view=v;render();scrollTo(0,0)}
+const cs=(sel)=>'<option value="">All classes</option>'+classes().map(c=>`<option ${c===sel?'selected':''}>${esc(c)}</option>`).join('');
+function dash(){
+ const act=S.students.filter(s=>s.status==='Active'),t=today();let P=0,Ab=0,L=0,un=0;
+ for(const s of act){const r=S.att[t+'_'+s.cls];const v=r&&r.marks[s.id];v==='P'?P++:v==='A'?Ab++:v==='L'?L++:un++}
+ const rec=P+Ab+L,low=act.map(s=>({s,x:stats(s.id,s.cls,daysIn(t.slice(0,7)))})).filter(o=>o.x.pct!==null&&o.x.pct<S.set.sat);
+ const all=act.map(s=>stats(s.id,s.cls,daysIn(t.slice(0,7)))),tp=all.reduce((a,x)=>a+x.P,0),td=all.reduce((a,x)=>a+x.rec-(S.set.leave==='present'?0:x.L),0);
+ return `<div class="grid"><div class="card stat"><b>${act.length}</b><span>Active students</span></div><div class="card stat"><b style="color:var(--ok)">${P}</b><span>Present today</span></div><div class="card stat"><b style="color:var(--ab)">${Ab}</b><span>Absent today</span></div><div class="card stat"><b>${L}</b><span>Approved leave</span></div><div class="card stat"><b>${rec?Math.round(P/Math.max(1,P+Ab)*100)+'%':'–'}</b><span>Today’s attendance</span></div><div class="card stat"><b>${td?Math.round(tp/td*100)+'%':'–'}</b><span>This month</span></div></div>
+ ${isWork(t)&&un&&rec<act.length?`<div class="card" style="border-color:var(--lv)">⚠ Attendance not yet recorded for ${un} students today.</div>`:''}
+ ${!isWork(t)?'<div class="card">Today is a holiday / non-working day.</div>':''}
+ <div class="row noprint" style="margin-bottom:12px"><button class="btn" onclick="go('att')">Mark attendance</button><button class="btn sec" onclick="go('stu')">Students</button><button class="btn sec" onclick="go('mon')">Monthly report</button></div>
+ <div class="card"><b>Low attendance this month (${low.length})</b><div class="tw"><table>${low.map(o=>`<tr><td>${esc(o.s.name)}</td><td>${esc(o.s.cls)}</td><td>${o.x.pct}%</td></tr>`).join('')||'<tr><td>None 🎉</td></tr>'}</table></div></div>
+ ${S.students.length?'':'<div class="card">No students yet. '+(role==='admin'?'Go to Students to import a CSV or load 200 fictional sample students.':'Ask the admin to add students.')+'</div>'}`}
+function att(){
+ const cl=classes();if(!A.cls||!cl.includes(A.cls))A.cls=cl[0]||'';
+ const id=A.date+'_'+A.cls,rec=S.att[id];if(A.loaded!==id){A.marks={...(rec?rec.marks:{})};A.loaded=id}
+ const list=S.students.filter(s=>s.status==='Active'&&s.cls===A.cls),q=A.q.toLowerCase();
+ const vis=list.filter(s=>!q||s.name.toLowerCase().includes(q)||s.id.toLowerCase().includes(q));
+ const c={P:0,A:0,L:0};list.forEach(s=>A.marks[s.id]&&c[A.marks[s.id]]++);const un=list.length-c.P-c.A-c.L,pct=c.P+c.A?Math.round(c.P/(c.P+c.A)*1000)/10:'–';
+ const ro=!can('mark');
+ return `<div class="sticky"><div class="row"><div><input type="date" value="${A.date}" onchange="A.date=this.value;A.loaded='';render()"></div><div><select onchange="A.cls=this.value;A.loaded='';render()">${cl.map(x=>`<option ${x===A.cls?'selected':''}>${esc(x)}</option>`).join('')}</select></div></div>
+ <input style="margin-top:6px" placeholder="Search name or ID" value="${esc(A.q)}" oninput="A.q=this.value;list_()">
+ <div style="margin-top:6px"><b style="color:var(--ok)">P ${c.P}</b> · <b style="color:var(--ab)">A ${c.A}</b> · <b style="color:var(--lv)">L ${c.L}</b> · <b>Not marked ${un}</b> · ${pct}%</div></div>
+ ${!isWork(A.date)?'<div class="card">This date is a holiday/non-working day. Attendance is not normally recorded.</div>':''}
+ ${rec?`<div class="card" style="padding:8px">Saved earlier${rec.by?'':''}. Changes will be logged in the edit history.</div>`:''}
+ <div class="card"><div id="lst">${rows(vis,ro)}</div></div>
+ ${ro?'<div class="card">View only: your role cannot mark attendance.</div>':`<div class="row noprint"><button class="btn sec" onclick="allP()">Mark all present</button><button class="btn" onclick="saveAtt()">Save attendance</button></div>`}`}
+function rows(vis,ro){return vis.map(s=>{const v=A.marks[s.id];return `<div class="st" style="${v?'':'background:rgba(183,121,31,.12)'}"><div class="nm"><b>${esc(s.name)}</b><small>${esc(s.id)}${v?'':' · not marked'}</small></div><div class="seg">${['P','A','L'].map(k=>`<button class="${k} ${v===k?'on':''}" ${ro?'disabled':''} onclick="mk('${s.id}','${k}')" aria-label="${{P:'Present',A:'Absent',L:'Leave'}[k]}">${k}</button>`).join('')}</div></div>`}).join('')||'No students in this class.'}
+function list_(){const q=A.q.toLowerCase();$('#lst').innerHTML=rows(S.students.filter(s=>s.status==='Active'&&s.cls===A.cls&&(!q||s.name.toLowerCase().includes(q)||s.id.toLowerCase().includes(q))),!can('mark'))}
+function mk(i,k){A.marks[i]=A.marks[i]===k?undefined:k;if(A.marks[i]===undefined)delete A.marks[i];const y=scrollY;const f=document.activeElement;const q=A.q;A.q=q;view='att';$('#app').innerHTML=att();scrollTo(0,y)}
+function allP(){S.students.filter(s=>s.status==='Active'&&s.cls===A.cls).forEach(s=>{if(!A.marks[s.id])A.marks[s.id]='P'});$('#app').innerHTML=att()}
+async function saveAtt(){
+  const id=A.date+'_'+A.cls,old=S.att[id],marks={};
+  Object.entries(A.marks).forEach(([k,v])=>{if(v)marks[k]=v});
+  if(!Object.keys(marks).length)return toast('Nothing to save');
+  S.att[id]={date:A.date,cls:A.cls,marks,by:uid,at:new Date().toISOString()};
+  if(old){const ch=Object.keys({...old.marks,...marks}).filter(k=>old.marks[k]!==marks[k]).map(k=>k+':'+(old.marks[k]||'-')+'→'+(marks[k]||'-'));if(ch.length)await log('attendance edit '+id,ch.join(', ').slice(0,900))}
+  else await log('attendance saved',id);
+  persist(); render(); toast('✔ Attendance saved ('+Object.keys(marks).length+' students)');
+}
+
+function stu(){
+ const q=(window._sq||'').toLowerCase(),f=window._sc||'';
+ const l=S.students.filter(s=>(!f||s.cls===f)&&(!q||(s.name+s.id+s.guardian).toLowerCase().includes(q)));
+ return `<div class="row noprint"><input placeholder="Search students" value="${esc(window._sq||'')}" oninput="window._sq=this.value;sl()"><select onchange="window._sc=this.value;sl()">${cs(f)}</select></div>
+ ${role==='admin'?`<div class="row noprint" style="margin:10px 0"><button class="btn" onclick="form()">+ Add student</button><label class="btn sec" style="text-align:center;margin:0">Import CSV<input type="file" accept=".csv" hidden onchange="imp(this.files[0])"></label><button class="btn sec" onclick="sample()">Load 200 sample</button></div>`:''}
+ <div id="frm"></div><div class="card tw"><div id="sl">${slist(l)}</div></div>`}
+const sl=()=>{const q=(window._sq||'').toLowerCase(),f=window._sc||'';$('#sl').innerHTML=slist(S.students.filter(s=>(!f||s.cls===f)&&(!q||(s.name+s.id+s.guardian).toLowerCase().includes(q))))};
+const slist=l=>`<table><tr><th>ID</th><th>Name</th><th>Class</th><th>Guardian</th><th>Status</th><th></th></tr>${l.map(s=>`<tr><td>${esc(s.id)}</td><td>${esc(s.name)}</td><td>${esc(s.cls)}</td><td>${esc(s.guardian)}<br><small>${esc(s.phone)}</small></td><td>${esc(s.status)}</td><td>${role==='admin'?`<button class="btn sec" onclick="form('${s.id}')">Edit</button>`:''}</td></tr>`).join('')}</table>${l.length} students`;
+function form(id){const s=S.students.find(x=>x.id===id)||{status:'Active'};const f=(k,l,t='text')=>`<label>${l}</label><input id="f_${k}" type="${t}" value="${esc(s[k])}">`;
+ $('#frm').innerHTML=`<div class="card"><b>${id?'Edit':'New'} student</b>${f('id','Student ID *')}${f('name','Name *')}${f('dob','Date of birth','date')}<label>Gender</label><select id="f_gender">${['','Girl','Boy','Other'].map(g=>`<option ${s.gender===g?'selected':''}>${g}</option>`)}</select>${f('cls','Class / group *')}${f('guardian','Parent / guardian')}${f('phone','Contact number','tel')}${f('admDate','Admission date','date')}${f('address','Address')}<label>Enrollment status</label><select id="f_status">${['Active','Transferred','Inactive'].map(g=>`<option ${s.status===g?'selected':''}>${g}</option>`)}</select>${f('remarks','Remarks')}<div class="row" style="margin-top:10px"><button class="btn" onclick="saveS('${id||''}')">Save</button><button class="btn sec" onclick="$('#frm').innerHTML=''">Cancel</button></div></div>`;scrollTo(0,0)}
+async function saveS(old){
+  const g=k=>$('#f_'+k).value.trim(),o={};
+  ['id','name','dob','gender','cls','guardian','phone','admDate','address','status','remarks'].forEach(k=>o[k]=g(k));
+  if(!o.id||!o.name||!o.cls)return toast('ID, name and class are required');
+  if(!/^[\w.-]+$/.test(o.id))return toast('ID: letters, digits, - _ . only');
+  if(o.id!==old&&S.students.some(s=>s.id===o.id))return toast('Student ID already exists');
+  if(old){const ix=S.students.findIndex(s=>s.id===old);if(ix>=0)S.students[ix]={...o}}
+  else S.students.push({...o});
+  S.students.sort((a,b)=>a.id.localeCompare(b.id)); persist(); await log(old?'student edit':'student add',o.id);
+  toast('✔ Saved'); $('#frm').innerHTML=''; render();
+}
+
+function csvParse(t){const rows=[];let r=[],c='',q=false;for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch==='"'&&t[i+1]==='"'){c+='"';i++}else if(ch==='"')q=false;else c+=ch}else if(ch==='"')q=true;else if(ch===','){r.push(c);c=''}else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;r.push(c);c='';if(r.some(x=>x.trim()))rows.push(r);r=[]}else c+=ch}r.push(c);if(r.some(x=>x.trim()))rows.push(r);return rows}
+const csvOut=rows=>'\ufeff'+rows.map(r=>r.map(c=>{c=String(c??'');return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c}).join(',')).join('\r\n');
+async function imp(file){if(!file)return;const rows=csvParse(await file.text()),h=rows.shift().map(x=>x.trim().toLowerCase());const ix=k=>h.indexOf(k);
+ if(ix('id')<0||ix('name')<0||ix('class')<0)return toast('CSV needs columns: id,name,class (optional: dob,gender,guardian,phone,admission_date,address,status,remarks)');
+ const objs=rows.map(r=>{const g=k=>ix(k)<0?'':(r[ix(k)]||'').trim();return{id:g('id'),name:g('name'),cls:g('class'),dob:g('dob'),gender:g('gender'),guardian:g('guardian'),phone:g('phone'),admDate:g('admission_date'),address:g('address'),status:['Active','Transferred','Inactive'].includes(g('status'))?g('status'):'Active',remarks:g('remarks')}}).filter(o=>o.id&&o.name&&o.cls&&/^[\w.-]+$/.test(o.id));
+ await bulk(objs);await log('CSV import',objs.length+' rows')}
+async function bulk(objs){
+  toast('Saving '+objs.length+' students…'); const map=new Map(S.students.map(s=>[s.id,s]));
+  objs.forEach(s=>map.set(s.id,s)); S.students=[...map.values()].sort((a,b)=>a.id.localeCompare(b.id));
+  persist(); render(); toast('✔ '+objs.length+' students saved');
+}
+
+async function sample(){const fn=['Aarav','Diya','Vihaan','Ananya','Aditya','Ishita','Kiran','Meera','Rohan','Sana'],ln=['Gowda','Naik','Shetty','Rao','Hegde','Patil','Kumar','Bhat'],cl=['Group A','Group B','Group C','Group D'];
+ await bulk(Array.from({length:200},(_,i)=>({id:'DEMO'+String(i+1).padStart(3,'0'),name:fn[i%10]+' '+ln[(i*3)%8]+' (demo)',cls:cl[i%4],dob:'',gender:i%2?'Boy':'Girl',guardian:'Guardian '+(i+1),phone:'',admDate:'2026-06-01',address:'',status:'Active',remarks:''})))}
+function mon(){const cl=classes(),days=daysIn(M.month),sched=days.filter(d=>d<=today()&&isWork(d)).length;
+ const data=S.students.filter(s=>s.status==='Active'&&(!M.cls||s.cls===M.cls)).map(s=>({s,x:stats(s.id,s.cls,days)}));window._md=data;
+ return `<div class="row noprint"><input type="month" value="${M.month}" onchange="M.month=this.value;render()"><select onchange="M.cls=this.value;render()">${cs(M.cls)}</select></div>
+ <div class="row noprint" style="margin:10px 0"><button class="btn" onclick="exp()">Download CSV</button><button class="btn sec" onclick="print()">Print / PDF</button></div>
+ <div class="card"><b>Shantiniketan LPS Anganwadi – Monthly attendance ${M.month}</b><br><small>${M.cls||'All classes'} · Working days so far: ${sched} · Generated ${today()}</small>
+ <div class="tw"><table><tr><th>ID</th><th>Name</th><th>Class</th><th>Recorded days</th><th>Present</th><th>Absent</th><th>Leave</th><th>%</th><th>Status</th></tr>${data.map(({s,x})=>{const [t,c]=status(x.pct);return `<tr><td>${esc(s.id)}</td><td>${esc(s.name)}</td><td>${esc(s.cls)}</td><td>${x.rec}</td><td>${x.P}</td><td>${x.Ab}</td><td>${x.L}</td><td>${x.pct??'–'}</td><td><span class="tag ${c}">${t}</span></td></tr>`}).join('')}</table></div>
+ <small>% = Present ÷ recorded school days × 100. Approved leave is ${S.set.leave==='present'?'counted as present':'excluded from the days'}. Holidays and Sundays are excluded. Attendance status is separate from enrollment status.</small></div>`}
+async function exp(){
+  const rows=[['School','Shantiniketan LPS Anganwadi'],['Month',M.month],['Generated',today()],[],['ID','Name','Class','Recorded days','Present','Absent','Leave','Attendance %','Attendance status','Enrollment']];
+  window._md.forEach(({s,x})=>rows.push([s.id,s.name,s.cls,x.rec,x.P,x.Ab,x.L,x.pct??'',status(x.pct)[0],s.status]));
+  const tp=window._md.reduce((a,o)=>a+o.x.P,0),ta=window._md.reduce((a,o)=>a+o.x.Ab,0); rows.push([],['Totals','','','','Present '+tp,'Absent '+ta]);
+  const blob=new Blob([csvOut(rows)],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='attendance_'+M.month+'.csv';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+}
+
+function cal(){const d=daysIn(M.month),off=new Date(d[0]+'T00:00:00Z').getUTCDay();
+ return `<div class="row noprint"><input type="month" value="${M.month}" onchange="M.month=this.value;render()"></div><div class="card" style="margin-top:10px"><div class="cal">${'SMTWTFS'.split('').map(x=>`<b style="text-align:center">${x}</b>`).join('')}${'<span></span>'.repeat(off)}${d.map(x=>{const w=isWork(x),done=classes().length&&classes().every(c=>S.att[x+'_'+c]);return `<div class="${w?'':'h'} ${done?'d':''}" title="${esc(S.hol[x]||'')}">${+x.slice(8)}${done?'<br>✔':!w?'<br>·':''}</div>`}).join('')}</div><small>✔ attendance complete for all classes · shaded = Sunday/holiday</small></div>
+ ${role==='admin'?`<div class="card"><b>Add holiday / closure</b><label>Date</label><input type="date" id="hd"><label>Name</label><input id="hn" placeholder="e.g. Diwali"><button class="btn" style="margin-top:8px" onclick="addH()">Add</button></div>`:''}
+ <div class="card"><b>Holidays</b>${Object.entries(S.hol).sort().map(([k,v])=>`<div class="st"><div class="nm">${k} – ${esc(v)}</div>${role==='admin'?`<button class="btn dg" onclick="deleteHoliday('${k}')">×</button>`:''}</div>`).join('')||'<br>None added. Sundays are automatically non-working.'}</div>`}
+async function addH(){
+  const d=$('#hd').value,n=$('#hn').value.trim(); if(!d||!n)return toast('Date and name needed');
+  S.hol[d]=n; persist(); await log('holiday added',d+' '+n); render(); toast('✔ Added');
+}
+function deleteHoliday(d){delete S.hol[d];persist();log('holiday removed',d);render()}
+
+function setv(){return `<div class="card"><b>Attendance categories</b><label>Good attendance at or above (%)</label><input id="sg" type="number" value="${S.set.good}"><label>Satisfactory at or above (%) — below this is Needs Attention</label><input id="ss" type="number" value="${S.set.sat}"><label>Approved leave policy</label><select id="sv"><option value="excluded" ${S.set.leave==='excluded'?'selected':''}>Excluded from school days</option><option value="present" ${S.set.leave==='present'?'selected':''}>Counted as present</option></select><button class="btn" style="margin-top:10px" onclick="saveSet()">Save settings</button></div>
+ <div class="card"><b>Device backup</b><p>Export a JSON backup regularly. This app does not sync data online.</p><div class="row"><button class="btn" onclick="backupData()">Export backup</button><label class="btn sec" style="text-align:center;margin:0">Restore backup<input type="file" accept=".json,application/json" hidden onchange="restoreData(this.files[0])"></label></div></div>
+  <div class="card"><b>Edit history (latest 40)</b><div class="tw"><table>${S.audit.map(a=>`<tr><td>${a.at.slice(0,16).replace('T',' ')}</td><td>${esc(a.action)}</td><td style="white-space:normal">${esc(a.detail)}</td></tr>`).join('')}</table></div></div>
+ <div class="card"><small>Roles follow how this page is shared: Editors = Admin, Contributors = Teacher (can mark attendance), Viewers = Head Teacher (dashboards and reports only).</small></div>`}
+async function saveSet(){
+  const g=+$('#sg').value,s=+$('#ss').value;
+  if(!(g>s&&s>0))return toast('Good % must be higher than Satisfactory %');
+  S.set={...S.set,good:g,sat:s,leave:$('#sv').value};persist();await log('settings changed',g+'/'+s);render();toast('✔ Saved');
+}
+function backupData(){
+  const data={app:'Shantiniketan LPS Anganwadi',version:1,exportedAt:new Date().toISOString(),students:S.students,att:S.att,hol:S.hol,set:S.set,audit:S.audit};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='shantiniketan-anganwadi-backup-'+today()+'.json';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+}
+async function restoreData(file){
+  if(!file)return;
+  try{
+    const d=JSON.parse(await file.text());
+    if(!d||!Array.isArray(d.students)||!d.att||typeof d.att!=='object')throw new Error('This file is not a valid app backup.');
+    if(!confirm('Restore this backup? Current records on this device will be replaced.'))return;
+    S.students=d.students;S.att=d.att;S.hol=d.hol||{};S.set={...S.set,...(d.set||{})};S.audit=Array.isArray(d.audit)?d.audit:[];
+    persist();render();toast('Backup restored');
+  }catch(e){toast(e.message||'Could not restore backup')}
+}
+
+init();
+
+if ('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost' || location.hostname==='127.0.0.1')) {
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+</script></body></html>
